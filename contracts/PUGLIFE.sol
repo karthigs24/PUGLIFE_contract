@@ -57,6 +57,8 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
 
     uint256 private _amount_burnt;
 
+    address devAddress = 0x1C34F8328bDC8797b166f87cE7A204cF743903Ba;
+
     event FeeEnable(bool enableFee);
     event SetMaxTxPercent(uint256 maxPercent);
     event SetTaxFeePercent(uint256 taxFeePercent);
@@ -65,6 +67,8 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         address toAddress,
         uint256 amount
     );
+
+    event Fee(uint256 amount);
 
     constructor() {
         _rOwned[_msgSender()] = _rTotal;
@@ -237,6 +241,33 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         _tFeeTotal = _tFeeTotal.add(tFee);
     }
 
+    function takeBurnFee(uint256 tburnFee) internal {
+        _amount_burnt = _amount_burnt.add(tburnFee);
+        emit Fee(tburnFee);
+    }
+
+    function takeDevFee(uint256 rdevFee, uint256 tdevFee) internal {
+        if (_isExcluded[devAddress]) {
+            _rOwned[devAddress] = _rOwned[devAddress].add(rdevFee);
+        } else {
+            _rOwned[devAddress] = _rOwned[devAddress].add(rdevFee);
+            _tOwned[devAddress] = _tOwned[devAddress].add(tdevFee);
+        }
+        emit Fee(tdevFee);
+    }
+
+    function takeLiquidityFee(uint256 rliquidityFee, uint256 tliquidityFee)
+        internal
+    {
+        if (_isExcluded[address(this)]) {
+            _rOwned[address(this)] = _rOwned[address(this)].add(rliquidityFee);
+        } else {
+            _rOwned[address(this)] = _rOwned[address(this)].add(rliquidityFee);
+            _tOwned[address(this)] = _tOwned[address(this)].add(tliquidityFee);
+        }
+        emit Fee(tliquidityFee);
+    }
+
     function getTValues(uint256 amount)
         internal
         view
@@ -273,6 +304,8 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         returns (
             uint256,
             uint256,
+            uint256,
+            uint256,
             uint256
         )
     {
@@ -288,7 +321,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             .sub(rburnFee)
             .sub(rdevFee)
             .sub(rliquidityFee);
-        return (rAmount, rTransferAmount, rFee);
+        return (rAmount, rTransferAmount, rFee, rdevFee, rliquidityFee);
     }
 
     function getRate() internal view returns (uint256) {
@@ -404,16 +437,21 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             uint256 tdevFee,
             uint256 tliquidityFee
         ) = getTValues(tAmount);
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = getRValues(
-            tAmount,
-            tFee,
-            tburnFee,
-            tdevFee,
-            tliquidityFee
-        );
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
+        (
+            uint256 rAmount,
+            uint256 rTransferAmount,
+            uint256 rFee,
+            uint256 rdevFee,
+            uint256 rliquidityFee
+        ) = getRValues(tAmount, tFee, tburnFee, tdevFee, tliquidityFee);
+        {
+            address from = sender;
+        _rOwned[from] = _rOwned[from].sub(rAmount);}
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
         takeReflectionFee(rFee, tFee);
+        takeBurnFee(tburnFee);
+        takeDevFee(rdevFee, tdevFee);
+        takeLiquidityFee(rliquidityFee, tliquidityFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
@@ -429,18 +467,24 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             uint256 tdevFee,
             uint256 tliquidityFee
         ) = getTValues(tAmount);
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = getRValues(
-            tAmount,
-            tFee,
-            tburnFee,
-            tdevFee,
-            tliquidityFee
-        );
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
+        (
+            uint256 rAmount,
+            uint256 rTransferAmount,
+            uint256 rFee,
+            uint256 rdevFee,
+            uint256 rliquidityFee
+        ) = getRValues(tAmount, tFee, tburnFee, tdevFee, tliquidityFee);
+        {
+            address from = sender;
+            _tOwned[from] = _tOwned[from].sub(tAmount);
+            _rOwned[from] = _rOwned[from].sub(rAmount);
+        }
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
         takeReflectionFee(rFee, tFee);
+        takeBurnFee(tburnFee);
+        takeDevFee(rdevFee, tdevFee);
+        takeLiquidityFee(rliquidityFee, tliquidityFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
@@ -456,17 +500,23 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             uint256 tdevFee,
             uint256 tliquidityFee
         ) = getTValues(tAmount);
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = getRValues(
-            tAmount,
-            tFee,
-            tburnFee,
-            tdevFee,
-            tliquidityFee
-        );
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
+        (
+            uint256 rAmount,
+            uint256 rTransferAmount,
+            uint256 rFee,
+            uint256 rdevFee,
+            uint256 rliquidityFee
+        ) = getRValues(tAmount, tFee, tburnFee, tdevFee, tliquidityFee);
+        {
+            address from = sender;
+            _rOwned[from] = _rOwned[from].sub(rAmount);
+        }
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
         takeReflectionFee(rFee, tFee);
+        takeBurnFee(tburnFee);
+        takeDevFee(rdevFee, tdevFee);
+        takeLiquidityFee(rliquidityFee, tliquidityFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
@@ -482,17 +532,23 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             uint256 tdevFee,
             uint256 tliquidityFee
         ) = getTValues(tAmount);
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = getRValues(
-            tAmount,
-            tFee,
-            tburnFee,
-            tdevFee,
-            tliquidityFee
-        );
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
+        (
+            uint256 rAmount,
+            uint256 rTransferAmount,
+            uint256 rFee,
+            uint256 rdevFee,
+            uint256 rliquidityFee
+        ) = getRValues(tAmount, tFee, tburnFee, tdevFee, tliquidityFee);
+        {
+            address from = sender;
+            _tOwned[from] = _tOwned[from].sub(tAmount);
+            _rOwned[from] = _rOwned[from].sub(rAmount);
+        }
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
         takeReflectionFee(rFee, tFee);
+        takeBurnFee(tburnFee);
+        takeDevFee(rdevFee, tdevFee);
+        takeLiquidityFee(rliquidityFee, tliquidityFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
