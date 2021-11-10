@@ -282,8 +282,12 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         uint256 rFee = tFee.mul(currentRate);
         uint256 rburnFee = tburnFee.mul(currentRate);
         uint256 rdevFee = tdevFee.mul(currentRate);
-        uint256 rliquidity = tliquidityFee.mul(currentRate);
-        uint256 rTransferAmount = rAmount.sub(rFee);
+        uint256 rliquidityFee = tliquidityFee.mul(currentRate);
+        uint256 rTransferAmount = rAmount
+            .sub(rFee)
+            .sub(rburnFee)
+            .sub(rdevFee)
+            .sub(rliquidityFee);
         return (rAmount, rTransferAmount, rFee);
     }
 
