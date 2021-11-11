@@ -68,7 +68,10 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         uint256 amount
     );
 
-    event Fee(uint256 amount);
+    event reDistributionFee(uint256 amount);
+    event burntFee(uint256 amount);
+    event deveFee(uint256 amount);
+    event liqFee(uint256 amount);
 
     constructor() {
         _rOwned[_msgSender()] = _rTotal;
@@ -239,11 +242,12 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     function takeReflectionFee(uint256 rFee, uint256 tFee) internal {
         _rTotal = _rTotal.sub(rFee);
         _tFeeTotal = _tFeeTotal.add(tFee);
+        emit reDistributionFee(tFee);
     }
 
     function takeBurnFee(uint256 tburnFee) internal {
         _amount_burnt = _amount_burnt.add(tburnFee);
-        emit Fee(tburnFee);
+        emit burntFee(tburnFee);
     }
 
     function takeDevFee(uint256 rdevFee, uint256 tdevFee) internal {
@@ -253,7 +257,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             _rOwned[devAddress] = _rOwned[devAddress].add(rdevFee);
             _tOwned[devAddress] = _tOwned[devAddress].add(tdevFee);
         }
-        emit Fee(tdevFee);
+        emit deveFee(tdevFee);
     }
 
     function takeLiquidityFee(uint256 rliquidityFee, uint256 tliquidityFee)
@@ -265,7 +269,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             _rOwned[address(this)] = _rOwned[address(this)].add(rliquidityFee);
             _tOwned[address(this)] = _tOwned[address(this)].add(tliquidityFee);
         }
-        emit Fee(tliquidityFee);
+        emit liqFee(tliquidityFee);
     }
 
     function getTValues(uint256 amount)
@@ -446,7 +450,8 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         ) = getRValues(tAmount, tFee, tburnFee, tdevFee, tliquidityFee);
         {
             address from = sender;
-        _rOwned[from] = _rOwned[from].sub(rAmount);}
+            _rOwned[from] = _rOwned[from].sub(rAmount);
+        }
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
         takeReflectionFee(rFee, tFee);
         takeBurnFee(tburnFee);
