@@ -47,7 +47,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     uint256 public burnFee = 1;
     uint256 private previousBurnFee = burnFee;
 
-    uint256 public devFee = 1;
+    uint256 public devFee = 2;
     uint256 private previousDevFee = devFee;
 
     uint256 public liqudityFee = 5;
@@ -369,13 +369,26 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     }
 
     function removeAllFee() internal {
-        if (taxFee == 0) return;
+        if (taxFee == 0 && burnFee == 0 && devFee == 0 && liqudityFee == 0)
+            return;
+        // if (burnFee == 0) return;
+        // if (devFee == 0) return;
+        // if (liqudityFee == 0) return;
         previousTaxFee = taxFee;
         taxFee = 0;
+        previousBurnFee = burnFee;
+        burnFee = 0;
+        previousDevFee = devFee;
+        devFee = 0;
+        previousLiqudityFee = liqudityFee;
+        liqudityFee = 0;
     }
 
     function restoreAllFee() internal {
         taxFee = previousTaxFee;
+        burnFee = previousBurnFee;
+        devFee = previousDevFee;
+        liqudityFee = previousLiqudityFee;
     }
 
     function _approve(
