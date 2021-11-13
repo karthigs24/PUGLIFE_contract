@@ -15,6 +15,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+import "./interface/IUniswapV2Router.sol";
+import "./interface/IUniswapV2Factory.sol";
+import "./interface/IUniswapV2Pair.sol";
+
 // contract PUGLIFE is ERC20 {
 //     constructor() ERC20("PUGLIFE", "PUGL") {
 //         _mint(msg.sender, 500000000000000 * (10**uint256(decimals())));
@@ -59,6 +63,12 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
 
     address devAddress = 0x1C34F8328bDC8797b166f87cE7A204cF743903Ba;
 
+    IUniswapV2Router02 public immutable uniswapV2Router;
+    address public immutable uniswapV2Pair;
+
+    bool public swapAndLiquifyEnabled = true;
+    uint256 public minLiquidityToken = 100 * 10**18;
+
     event FeeEnable(bool enableFee);
     event SetMaxTxPercent(uint256 maxPercent);
     event SetTaxFeePercent(uint256 taxFeePercent);
@@ -73,8 +83,30 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     event deveFee(uint256 amount);
     event liqFee(uint256 amount);
 
+    event SwapAndLiquifyEnabledUpdated(bool enabled);
+    event SwapAndLiquify(
+        uint256 tokensSwapped,
+        uint256 ethReceived,
+        uint256 tokensIntoLiqudity
+    );
+
     constructor() {
         _rOwned[_msgSender()] = _rTotal;
+        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+        //     0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
+        // );
+        // uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+        //     .createPair(address(this), _uniswapV2Router.WETH());
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+
+        // Create a uniswap pair for this new token
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
@@ -272,6 +304,14 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         emit liqFee(tliquidityFee);
     }
 
+    function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
+        swapAndLiquifyEnabled = _enabled;
+        emit SwapAndLiquifyEnabledUpdated(_enabled);
+    }
+
+    //to recieve ETH from uniswapV2Router when swaping
+    receive() external payable {}
+
     function getTValues(uint256 amount)
         internal
         view
@@ -412,6 +452,12 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         require(amount > 0, "Transfer amount must be greater than zero");
         _beforeTokenTransfer(from, to);
         uint256 senderBalance = balanceOf(from);
+        uint256 contractTokenBalance = balanceOf(address(this));
+
+        if (contractTokenBalance >= minLiquidityToken) {
+            swapAndLiquify(contractTokenBalance);
+        }
+
         require(
             senderBalance >= amount,
             "ERC20: transfer amount exceeds balance"
@@ -421,6 +467,50 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             takeFee = false;
         }
         _tokenTransfer(from, to, amount, takeFee);
+    }
+
+    function swapAndLiquify(uint256 contractTokenBalance) private {
+        uint256 half = contractTokenBalance.div(2);
+        uint256 otherHalf = contractTokenBalance.sub(half);
+
+        uint256 initialBalance = address(this).balance;
+
+        swapTokensForEth(half);
+
+        uint256 newBalance = address(this).balance.sub(initialBalance);
+
+        addLiquidity(otherHalf, newBalance);
+
+        emit SwapAndLiquify(half, newBalance, otherHalf);
+    }
+
+    function swapTokensForEth(uint256 tokenAmount) private {
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = uniswapV2Router.WETH();
+
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+        _approve(address(this), address(uniswapV2Router), tokenAmount);
+
+        uniswapV2Router.addLiquidityETH{value: ethAmount}(
+            address(this),
+            tokenAmount,
+            0,
+            0,
+            owner(),
+            block.timestamp
+        );
     }
 
     function _tokenTransfer(
