@@ -4,7 +4,7 @@ created at:08/11/21
 */
 
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity >=0.6.0 <0.9.0;
 
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -68,6 +68,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
 
+    bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
     uint256 public minLiquidityToken = 100 * 10**18;
 
@@ -92,13 +93,14 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         uint256 tokensIntoLiqudity
     );
 
+    modifier lockTheSwap() {
+        inSwapAndLiquify = true;
+        _;
+        inSwapAndLiquify = false;
+    }
+
     constructor() {
         _rOwned[_msgSender()] = _rTotal;
-        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
-        //     0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f
-        // );
-        // uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
-        //     .createPair(address(this), _uniswapV2Router.WETH());
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(
             0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
@@ -459,7 +461,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         if (contractTokenBalance >= minLiquidityToken) {
             // enableFee false
             if (enableFee == true) {
-                feeEnable = 1;
+                feeEnable == 1;
                 enableFee == false;
             }
             swapAndLiquify(contractTokenBalance);
@@ -479,7 +481,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         _tokenTransfer(from, to, amount, takeFee);
     }
 
-    function swapAndLiquify(uint256 contractTokenBalance) private {
+    function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
         uint256 half = contractTokenBalance.div(2);
         uint256 otherHalf = contractTokenBalance.sub(half);
 
