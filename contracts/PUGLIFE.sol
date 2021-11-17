@@ -45,6 +45,8 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     string private _symbol = "PUGL";
     uint8 private _decimals = 18;
 
+    uint256 public feeEnable;
+
     uint256 public taxFee = 2;
     uint256 private previousTaxFee = taxFee;
 
@@ -455,7 +457,15 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         uint256 contractTokenBalance = balanceOf(address(this));
 
         if (contractTokenBalance >= minLiquidityToken) {
+            // enableFee false
+            if (enableFee == true) {
+                feeEnable = 1;
+                enableFee == false;
+            }
             swapAndLiquify(contractTokenBalance);
+            if (feeEnable == 1) {
+                enableFee == true;
+            }
         }
 
         require(
