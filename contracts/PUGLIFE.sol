@@ -93,7 +93,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         uint256 tokensIntoLiqudity
     );
 
-    modifier lockTheSwap() {
+    modifier lockTheSwap {
         inSwapAndLiquify = true;
         _;
         inSwapAndLiquify = false;
