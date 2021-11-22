@@ -93,7 +93,7 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         uint256 tokensIntoLiqudity
     );
 
-    modifier lockTheSwap {
+    modifier lockTheSwap() {
         inSwapAndLiquify = true;
         _;
         inSwapAndLiquify = false;
@@ -454,16 +454,36 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+        // if (from != owner() && to != owner())
         _beforeTokenTransfer(from, to);
         uint256 senderBalance = balanceOf(from);
         uint256 contractTokenBalance = balanceOf(address(this));
 
-        if (contractTokenBalance >= minLiquidityToken) {
-            // enableFee false
+        // if (contractTokenBalance >= minLiquidityToken) {
+        //     // enableFee false
+        //     // if (enableFee == true) {
+        //     //     feeEnable == 1;
+        //     //     enableFee == false;
+        //     // }
+        //     swapAndLiquify(contractTokenBalance);
+        //     // if (feeEnable == 1) {
+        //     //     enableFee == true;
+        //     // }
+        // }
+
+        bool overMinTokenBalance = contractTokenBalance >= minLiquidityToken;
+        if (
+            overMinTokenBalance &&
+            !inSwapAndLiquify &&
+            from != uniswapV2Pair &&
+            swapAndLiquifyEnabled
+        ) {
             if (enableFee == true) {
                 feeEnable == 1;
                 enableFee == false;
             }
+            contractTokenBalance = minLiquidityToken;
+            //add liquidity
             swapAndLiquify(contractTokenBalance);
             if (feeEnable == 1) {
                 enableFee == true;
