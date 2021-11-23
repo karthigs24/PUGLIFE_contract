@@ -6,8 +6,6 @@ created at:08/11/21
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.0 <0.9.0;
 
-// import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -18,12 +16,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interface/IUniswapV2Router.sol";
 import "./interface/IUniswapV2Factory.sol";
 import "./interface/IUniswapV2Pair.sol";
-
-// contract PUGLIFE is ERC20 {
-//     constructor() ERC20("PUGLIFE", "PUGL") {
-//         _mint(msg.sender, 500000000000000 * (10**uint256(decimals())));
-//     }
-// }
 
 contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     using SafeMath for uint256;
@@ -45,7 +37,8 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     string private _symbol = "PUGL";
     uint8 private _decimals = 18;
 
-    uint256 public feeEnable;
+    uint256 public feeEnable = 1;
+    uint256 private previousfeeEnable;
 
     uint256 public taxFee = 2;
     uint256 private previousTaxFee = taxFee;
@@ -415,9 +408,6 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
     function removeAllFee() internal {
         if (taxFee == 0 && burnFee == 0 && devFee == 0 && liqudityFee == 0)
             return;
-        // if (burnFee == 0) return;
-        // if (devFee == 0) return;
-        // if (liqudityFee == 0) return;
         previousTaxFee = taxFee;
         taxFee = 0;
         previousBurnFee = burnFee;
@@ -458,20 +448,9 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
         _beforeTokenTransfer(from, to);
         uint256 senderBalance = balanceOf(from);
         uint256 contractTokenBalance = balanceOf(address(this));
-
-        // if (contractTokenBalance >= minLiquidityToken) {
-        //     // enableFee false
-        //     // if (enableFee == true) {
-        //     //     feeEnable == 1;
-        //     //     enableFee == false;
-        //     // }
-        //     swapAndLiquify(contractTokenBalance);
-        //     // if (feeEnable == 1) {
-        //     //     enableFee == true;
-        //     // }
-        // }
-
         bool overMinTokenBalance = contractTokenBalance >= minLiquidityToken;
+        bool previousenableFee;
+
         if (
             overMinTokenBalance &&
             !inSwapAndLiquify &&
@@ -479,14 +458,14 @@ contract PUGLIFE is Context, IERC20, IERC20Metadata, Ownable {
             swapAndLiquifyEnabled
         ) {
             if (enableFee == true) {
-                feeEnable == 1;
-                enableFee == false;
+                previousenableFee = enableFee;
+                enableFee = false;
             }
             contractTokenBalance = minLiquidityToken;
             //add liquidity
             swapAndLiquify(contractTokenBalance);
-            if (feeEnable == 1) {
-                enableFee == true;
+            if (previousenableFee == true) {
+                enableFee = true;
             }
         }
 
